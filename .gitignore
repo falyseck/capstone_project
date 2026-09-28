@@ -1,0 +1,43 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter / notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment/config files
+.env
+.env.*
+*.local
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs and runtime output
+*.log
+*.sqlite3
+
+# Model artifacts and generated files
+trained_model/*.joblib
+trained_model/*.pkl
+trained_model/*.png
+trained_model/*.json
+
+# Python packaging/build artifacts
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
