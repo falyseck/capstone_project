@@ -1,24 +1,6 @@
-"""
-FastAPI application for the PPD risk screening system.
-
-Endpoints map directly onto the two sequence diagrams in section 3.6.4 of the proposal:
-
-  Mother flow (3.6.4.a):
-    POST /auth/register        - mother registers, picks her facility
-    POST /auth/login           - mother logs in
-    POST /screening/submit     - submits form -> saves form -> predicts -> checks
-                                  self-harm -> saves prediction + crisis check -> returns
-                                  result, recommendation, and crisis message if flagged
-    GET  /screening/history    - a mother's own screening history
-
-  Healthcare worker flow (3.6.4.b):
-    POST /auth/register        - healthcare worker registers, picks their facility
-    POST /auth/login           - healthcare worker logs in
-    GET  /healthcare/patients  - list of mothers linked to the worker's own facility only
-    GET  /healthcare/patients/{mother_id}/history - one mother's full screening history
-    POST /healthcare/patients/{mother_id}/report  - generates and saves a report
-"""
 import json
+from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -31,38 +13,30 @@ import models as m
 import schemas as s
 from database import Base, SessionLocal, engine, get_db
 
-app = FastAPI(
-    title="PPD Risk Screening API",
-    description="Backend for the postpartum depression risk screening system.",
-    version="1.0.0",
-)
 
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-
-    # Seed a couple of demo facilities and register the trained model's metadata,
-    # so the API is immediately usable after a fresh install.
-    db: Session = SessionLocal()
+    db = SessionLocal()
     try:
         if db.query(m.Facility).count() == 0:
             db.add_all([
                 m.Facility(name="Centre de Sante Dakar Nord", location="Dakar"),
                 m.Facility(name="Centre de Sante Pikine", location="Pikine"),
             ])
-            db.commit()
-
         if db.query(m.MLModel).count() == 0:
-            meta = ml_service.model_metadata()
-            db.add(m.MLModel(
-                algorithm_name=meta["model_name"],
-                version="v1",
-                accuracy=None,
-            ))
-            db.commit()
+            try:
+                model_name, trained_on = ml_service.model_metadata()
+            except RuntimeError:
+                model_name, trained_on = "not_trained_yet", "n/a"
+            db.add(m.MLModel(algorithm_name=model_name, version="v1", accuracy=None))
+        db.commit()
     finally:
         db.close()
+    yield
+
+
+app = FastAPI(title="PPD Risk Screening API", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -70,29 +44,26 @@ def health():
     return {"status": "ok"}
 
 
-# ---------------------------------------------------------------- facilities
-
 @app.get("/facilities", response_model=List[s.FacilityOut])
 def list_facilities(db: Session = Depends(get_db)):
     return db.query(m.Facility).all()
 
 
-# ---------------------------------------------------------------- auth
-
-@app.post("/auth/register", response_model=s.UserOut, status_code=status.HTTP_201_CREATED)
+@app.post("/auth/register", response_model=s.UserOut, status_code=201)
 def register(payload: s.UserRegister, db: Session = Depends(get_db)):
-    if db.query(m.User).filter(m.User.email == payload.email).first():
+    existing = db.query(m.User).filter(m.User.email == payload.email).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Email already registered.")
 
     facility = db.query(m.Facility).filter(m.Facility.id == payload.facility_id).first()
     if not facility:
-        raise HTTPException(status_code=404, detail="Facility not found.")
+        raise HTTPException(status_code=400, detail="Facility not found.")
 
     user = m.User(
         name=payload.name,
         email=payload.email,
         hashed_password=auth.hash_password(payload.password),
-        role=payload.role,
+        role=m.RoleEnum(payload.role),
         facility_id=payload.facility_id,
         date_of_birth=payload.date_of_birth,
         delivery_date=payload.delivery_date,
@@ -108,16 +79,33 @@ def register(payload: s.UserRegister, db: Session = Depends(get_db)):
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(m.User).filter(m.User.email == form_data.username).first()
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    token = auth.create_access_token(data={"sub": user.id, "role": user.role.value})
-    return s.Token(access_token=token)
+        raise HTTPException(status_code=401, detail="Incorrect email or password.")
+
+    token = auth.create_access_token({"sub": user.id, "role": user.role.value})
+    return s.Token(access_token=token, role=user.role.value, user_id=user.id, name=user.name)
 
 
-# ---------------------------------------------------------------- mother flow
+def _history_item(form: m.ScreeningForm) -> s.ScreeningHistoryItem:
+    risk_level = form.prediction.risk_level.value if form.prediction else None
+    probability_score = form.prediction.probability_score if form.prediction else None
+    crisis_flagged = form.crisis_check.flagged if form.crisis_check else None
+
+    # The most recent independent clinical assessment for this screening, if any.
+    # clinical_assessments is already ordered newest-first (see models.py).
+    latest_assessment = form.clinical_assessments[0] if form.clinical_assessments else None
+    clinical_risk_level = latest_assessment.risk_level.value if latest_assessment else None
+    clinical_notes = latest_assessment.notes if latest_assessment else None
+
+    return s.ScreeningHistoryItem(
+        form_id=form.id,
+        submission_date=form.submission_date,
+        risk_level=risk_level,
+        probability_score=probability_score,
+        crisis_flagged=crisis_flagged,
+        clinical_risk_level=clinical_risk_level,
+        clinical_notes=clinical_notes,
+    )
+
 
 @app.post("/screening/submit", response_model=s.PredictionOut)
 def submit_screening(
@@ -125,33 +113,29 @@ def submit_screening(
     db: Session = Depends(get_db),
     current_user: m.User = Depends(auth.require_role(m.RoleEnum.mother)),
 ):
-    # 1. save the form
-    form = m.ScreeningForm(
-        mother_id=current_user.id,
-        responses=json.dumps(payload.model_dump()),
-    )
+    responses = payload.model_dump()
+
+    form = m.ScreeningForm(mother_id=current_user.id, responses=json.dumps(responses))
     db.add(form)
     db.flush()  # get form.id without committing yet
 
-    # 2. ML model prediction (self-harm item is never passed to the model)
-    risk_level, probability_score = ml_service.predict_risk(payload.model_dump())
+    risk_level, probability_score = ml_service.predict_risk(responses)
     recommendation_text = ml_service.recommendation_for(risk_level)
 
     latest_model = db.query(m.MLModel).order_by(m.MLModel.trained_at.desc()).first()
 
     prediction = m.PredictionResult(
         form_id=form.id,
-        risk_level=risk_level,
+        risk_level=m.RiskLevelEnum(risk_level),
         probability_score=probability_score,
         recommendation_text=recommendation_text,
         model_version=latest_model.id if latest_model else None,
     )
     db.add(prediction)
 
-    # 3. separate, rule-based self-harm / crisis check
-    flagged = ml_service.check_self_harm(payload.model_dump())
-    crisis_check = m.CrisisCheck(form_id=form.id, flagged=flagged)
-    db.add(crisis_check)
+    flagged = ml_service.check_self_harm(responses)
+    crisis = m.CrisisCheck(form_id=form.id, flagged=flagged)
+    db.add(crisis)
 
     db.commit()
     db.refresh(prediction)
@@ -168,7 +152,7 @@ def submit_screening(
 
 
 @app.get("/screening/history", response_model=List[s.ScreeningHistoryItem])
-def my_screening_history(
+def screening_history(
     db: Session = Depends(get_db),
     current_user: m.User = Depends(auth.require_role(m.RoleEnum.mother)),
 ):
@@ -178,32 +162,19 @@ def my_screening_history(
         .order_by(m.ScreeningForm.submission_date.desc())
         .all()
     )
-    return [_history_item(f) for f in forms if f.prediction and f.crisis_check]
+    return [_history_item(f) for f in forms]
 
-
-# ---------------------------------------------------------------- healthcare worker flow
 
 def _get_mother_in_same_facility(mother_id: str, worker: m.User, db: Session) -> m.User:
     mother = db.query(m.User).filter(m.User.id == mother_id).first()
     if not mother or mother.role != m.RoleEnum.mother:
         raise HTTPException(status_code=404, detail="Mother not found.")
     if mother.facility_id != worker.facility_id:
-        # A healthcare worker can only see mothers linked to their own facility.
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This mother is not linked to your facility.",
+            status_code=403,
+            detail="You can only access mothers registered at your own facility.",
         )
     return mother
-
-
-def _history_item(form: m.ScreeningForm) -> s.ScreeningHistoryItem:
-    return s.ScreeningHistoryItem(
-        form_id=form.id,
-        submission_date=form.submission_date,
-        risk_level=form.prediction.risk_level,
-        probability_score=form.prediction.probability_score,
-        crisis_flagged=form.crisis_check.flagged,
-    )
 
 
 @app.get("/healthcare/patients", response_model=List[s.PatientSummary])
@@ -216,33 +187,79 @@ def list_patients(
         .filter(m.User.role == m.RoleEnum.mother, m.User.facility_id == current_user.facility_id)
         .all()
     )
-
     summaries = []
     for mother in mothers:
-        forms = sorted(mother.screening_forms, key=lambda f: f.submission_date, reverse=True)
-        latest = forms[0] if forms else None
-        summaries.append(s.PatientSummary(
-            mother_id=mother.id,
-            name=mother.name,
-            latest_risk_level=latest.prediction.risk_level if latest and latest.prediction else None,
-            latest_submission_date=latest.submission_date if latest else None,
-            total_screenings=len(forms),
-        ))
+        forms = (
+            db.query(m.ScreeningForm)
+            .filter(m.ScreeningForm.mother_id == mother.id)
+            .order_by(m.ScreeningForm.submission_date.desc())
+            .all()
+        )
+        latest_risk = None
+        if forms and forms[0].prediction:
+            latest_risk = forms[0].prediction.risk_level.value
+        summaries.append(
+            s.PatientSummary(
+                mother_id=mother.id,
+                name=mother.name,
+                email=mother.email,
+                latest_risk_level=latest_risk,
+                total_screenings=len(forms),
+            )
+        )
     return summaries
 
 
-@app.get(
-    "/healthcare/patients/{mother_id}/history",
-    response_model=List[s.ScreeningHistoryItem],
-)
+@app.get("/healthcare/patients/{mother_id}/history", response_model=List[s.ScreeningHistoryItem])
 def patient_history(
     mother_id: str,
     db: Session = Depends(get_db),
     current_user: m.User = Depends(auth.require_role(m.RoleEnum.healthcare_worker)),
 ):
-    mother = _get_mother_in_same_facility(mother_id, current_user, db)
-    forms = sorted(mother.screening_forms, key=lambda f: f.submission_date, reverse=True)
-    return [_history_item(f) for f in forms if f.prediction and f.crisis_check]
+    _get_mother_in_same_facility(mother_id, current_user, db)
+    forms = (
+        db.query(m.ScreeningForm)
+        .filter(m.ScreeningForm.mother_id == mother_id)
+        .order_by(m.ScreeningForm.submission_date.desc())
+        .all()
+    )
+    return [_history_item(f) for f in forms]
+
+
+@app.post(
+    "/healthcare/screenings/{form_id}/assessment",
+    response_model=s.ClinicalAssessmentOut,
+    status_code=201,
+)
+def add_clinical_assessment(
+    form_id: str,
+    payload: s.ClinicalAssessmentIn,
+    db: Session = Depends(get_db),
+    current_user: m.User = Depends(auth.require_role(m.RoleEnum.healthcare_worker)),
+):
+    """
+    Records a healthcare worker's independent risk judgment for a screening — deliberately
+    separate from the ML prediction on the same form. See models.ClinicalAssessment for why:
+    this is what lets future real-world data escape the circular-label problem found in the
+    training dataset (Chapter Four / notebook Section 4b).
+    """
+    form = db.query(m.ScreeningForm).filter(m.ScreeningForm.id == form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Screening not found.")
+
+    # Reuses the same facility-scoping rule as every other healthcare-worker endpoint.
+    _get_mother_in_same_facility(form.mother_id, current_user, db)
+
+    assessment = m.ClinicalAssessment(
+        form_id=form_id,
+        worker_id=current_user.id,
+        risk_level=m.RiskLevelEnum(payload.risk_level),
+        notes=payload.notes,
+    )
+    db.add(assessment)
+    db.commit()
+    db.refresh(assessment)
+    return assessment
 
 
 @app.post("/healthcare/patients/{mother_id}/report", response_model=s.ReportOut)
@@ -252,26 +269,29 @@ def generate_report(
     current_user: m.User = Depends(auth.require_role(m.RoleEnum.healthcare_worker)),
 ):
     mother = _get_mother_in_same_facility(mother_id, current_user, db)
-    forms = sorted(mother.screening_forms, key=lambda f: f.submission_date, reverse=True)
-
-    if not forms:
-        raise HTTPException(status_code=404, detail="This mother has no screenings yet.")
-
-    lines = [f"Screening report for {mother.name} ({len(forms)} screening(s) on record)", ""]
-    for f in forms:
-        if f.prediction:
-            lines.append(
-                f"- {f.submission_date:%Y-%m-%d}: risk={f.prediction.risk_level.value}, "
-                f"probability={f.prediction.probability_score:.2f}, "
-                f"crisis_flag={f.crisis_check.flagged if f.crisis_check else 'n/a'}"
-            )
-    content = "\n".join(lines)
-
-    report = m.Report(
-        mother_id=mother.id,
-        generated_by=current_user.id,
-        content=content,
+    forms = (
+        db.query(m.ScreeningForm)
+        .filter(m.ScreeningForm.mother_id == mother_id)
+        .order_by(m.ScreeningForm.submission_date.desc())
+        .all()
     )
+
+    lines = [f"Screening report for {mother.name} ({mother.email})", f"Generated at: {datetime.utcnow().isoformat()}", ""]
+    if not forms:
+        lines.append("No screenings on record yet.")
+    for f in forms:
+        risk = f.prediction.risk_level.value if f.prediction else "n/a"
+        crisis = "YES" if (f.crisis_check and f.crisis_check.flagged) else "No"
+        line = f"- {f.submission_date.isoformat()}: ML risk={risk}, crisis_flag={crisis}"
+        if f.clinical_assessments:
+            latest = f.clinical_assessments[0]
+            line += f", clinical assessment={latest.risk_level.value}"
+            if latest.notes:
+                line += f" ({latest.notes})"
+        lines.append(line)
+
+    content = "\n".join(lines)
+    report = m.Report(mother_id=mother_id, generated_by=current_user.id, content=content)
     db.add(report)
     db.commit()
     db.refresh(report)

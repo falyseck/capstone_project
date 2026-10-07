@@ -1,27 +1,9 @@
-"""
-SQLAlchemy ORM models.
-
-These map directly onto the ERD in section 3.6.3 and the class diagram in section 3.6.2
-of the capstone proposal:
-
-    facilities  ->  Facility
-    users       ->  User            (Mother and HealthcareWorker share this table,
-                                      distinguished by the `role` column, matching the
-                                      User -> Mother / User -> HealthcareWorker
-                                      inheritance in the class diagram)
-    screening_forms -> ScreeningForm
-    predictions     -> PredictionResult
-    crisis_checks   -> CrisisCheck
-    models          -> MLModel      (metadata about the trained model, not the model
-                                      file itself, which lives in trained_model/)
-    reports         -> Report
-"""
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import (
-    Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, Enum
+    Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey, Enum
 )
 from sqlalchemy.orm import relationship
 
@@ -33,7 +15,7 @@ def _uuid():
 
 
 def _now():
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 class RoleEnum(str, enum.Enum):
@@ -68,20 +50,22 @@ class User(Base):
     facility_id = Column(String, ForeignKey("facilities.id"), nullable=False)
     created_at = Column(DateTime, default=_now)
 
-    # Mother-only fields (nullable for healthcare workers)
+    # mother-only fields
     date_of_birth = Column(String, nullable=True)
     delivery_date = Column(String, nullable=True)
 
-    # HealthcareWorker-only field (nullable for mothers)
+    # healthcare-worker-only field
     license_id = Column(String, nullable=True)
 
     facility = relationship("Facility", back_populates="users")
-    screening_forms = relationship("ScreeningForm", back_populates="mother")
+    screening_forms = relationship(
+        "ScreeningForm", back_populates="mother", foreign_keys="ScreeningForm.mother_id"
+    )
     reports_received = relationship(
         "Report", back_populates="mother", foreign_keys="Report.mother_id"
     )
     reports_generated = relationship(
-        "Report", back_populates="generated_by_user", foreign_keys="Report.generated_by"
+        "Report", back_populates="worker", foreign_keys="Report.generated_by"
     )
 
 
@@ -90,20 +74,19 @@ class ScreeningForm(Base):
 
     id = Column(String, primary_key=True, default=_uuid)
     mother_id = Column(String, ForeignKey("users.id"), nullable=False)
-    responses = Column(Text, nullable=False)  # JSON-encoded form answers
+    responses = Column(Text, nullable=False)  # JSON-encoded
     submission_date = Column(DateTime, default=_now)
 
-    mother = relationship("User", back_populates="screening_forms")
-    prediction = relationship(
-        "PredictionResult", back_populates="form", uselist=False
-    )
-    crisis_check = relationship(
-        "CrisisCheck", back_populates="form", uselist=False
+    mother = relationship("User", back_populates="screening_forms", foreign_keys=[mother_id])
+    prediction = relationship("PredictionResult", back_populates="form", uselist=False)
+    crisis_check = relationship("CrisisCheck", back_populates="form", uselist=False)
+    clinical_assessments = relationship(
+        "ClinicalAssessment", back_populates="form", order_by="ClinicalAssessment.assessed_at.desc()"
     )
 
 
 class MLModel(Base):
-    __tablename__ = "models"
+    __tablename__ = "ml_models"
 
     id = Column(String, primary_key=True, default=_uuid)
     algorithm_name = Column(String, nullable=False)
@@ -111,33 +94,53 @@ class MLModel(Base):
     accuracy = Column(Float, nullable=True)
     trained_at = Column(DateTime, default=_now)
 
-    predictions = relationship("PredictionResult", back_populates="model")
-
 
 class PredictionResult(Base):
-    __tablename__ = "predictions"
+    __tablename__ = "prediction_results"
 
     id = Column(String, primary_key=True, default=_uuid)
-    form_id = Column(String, ForeignKey("screening_forms.id"), nullable=False, unique=True)
+    form_id = Column(String, ForeignKey("screening_forms.id"), unique=True, nullable=False)
     risk_level = Column(Enum(RiskLevelEnum), nullable=False)
     probability_score = Column(Float, nullable=False)
     recommendation_text = Column(Text, nullable=False)
-    model_version = Column(String, ForeignKey("models.id"), nullable=True)
+    model_version = Column(String, ForeignKey("ml_models.id"), nullable=True)
     predicted_at = Column(DateTime, default=_now)
 
     form = relationship("ScreeningForm", back_populates="prediction")
-    model = relationship("MLModel", back_populates="predictions")
 
 
 class CrisisCheck(Base):
     __tablename__ = "crisis_checks"
 
     id = Column(String, primary_key=True, default=_uuid)
-    form_id = Column(String, ForeignKey("screening_forms.id"), nullable=False, unique=True)
+    form_id = Column(String, ForeignKey("screening_forms.id"), unique=True, nullable=False)
     flagged = Column(Boolean, nullable=False)
     checked_at = Column(DateTime, default=_now)
 
     form = relationship("ScreeningForm", back_populates="crisis_check")
+
+
+class ClinicalAssessment(Base):
+    """
+    An independent risk judgment recorded by a healthcare worker after reviewing a mother,
+    deliberately kept separate from the ML prediction on the same screening form. This is
+    what lets future real-world data avoid the circularity found in the training dataset
+    (where the label was a deterministic function of the same features used as model input):
+    here, the assessment is an outcome a clinician arrived at independently, not derived from
+    the form's own answers, so a (form responses -> clinical_assessment.risk_level) pair is a
+    genuine, non-circular training example for a future retrain.
+    """
+    __tablename__ = "clinical_assessments"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    form_id = Column(String, ForeignKey("screening_forms.id"), nullable=False)
+    worker_id = Column(String, ForeignKey("users.id"), nullable=False)
+    risk_level = Column(Enum(RiskLevelEnum), nullable=False)
+    notes = Column(Text, nullable=True)
+    assessed_at = Column(DateTime, default=_now)
+
+    form = relationship("ScreeningForm", back_populates="clinical_assessments")
+    worker = relationship("User", foreign_keys=[worker_id])
 
 
 class Report(Base):
@@ -150,6 +153,4 @@ class Report(Base):
     content = Column(Text, nullable=False)
 
     mother = relationship("User", back_populates="reports_received", foreign_keys=[mother_id])
-    generated_by_user = relationship(
-        "User", back_populates="reports_generated", foreign_keys=[generated_by]
-    )
+    worker = relationship("User", back_populates="reports_generated", foreign_keys=[generated_by])

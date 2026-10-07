@@ -1,7 +1,13 @@
-fastapi==0.115.0
+# Pinned to exact versions that are known to work together. If you see
+# "Router.__init__() got an unexpected keyword argument 'on_startup'" it means
+# pip resolved an incompatible fastapi/starlette combo (this happens easily if
+# something else in the same venv, like streamlit, pulls in a newer starlette) —
+# reinstall with: pip install -r requirements.txt --force-reinstall
+fastapi==0.141.1
+starlette==1.7.0
 uvicorn[standard]==0.30.6
-sqlalchemy==2.0.35
-pydantic[email]==2.9.2
+sqlalchemy==2.1.1
+pydantic[email]==2.13.3
 python-jose[cryptography]==3.3.0
 passlib==1.7.4
 bcrypt==4.0.1

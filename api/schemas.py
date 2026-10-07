@@ -4,14 +4,21 @@ validation (functional requirement 3.2.1 #4: "validate the form and reject incom
 submissions").
 """
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
-Level = Literal["No", "Sometimes", "Yes"]
+LevelLiteral = Literal["No", "Sometimes", "Yes"]
 AgeBracket = Literal["25-30", "30-35", "35-40", "40-45", "45-50"]
 Role = Literal["mother", "healthcare_worker"]
 RiskLevel = Literal["low", "medium", "high"]
+
+
+def _unwrap_enum(v):
+    """SQLAlchemy returns Enum members (e.g. RoleEnum.mother); pydantic's
+    Literal validator rejects them even though they're str subclasses.
+    This pulls out the plain string value before validation runs."""
+    return v.value if hasattr(v, "value") else v
 
 
 # ---------- Facility ----------
@@ -47,6 +54,11 @@ class UserOut(BaseModel):
     role: Role
     facility_id: str
 
+    @field_validator("role", mode="before")
+    @classmethod
+    def _coerce_role(cls, v):
+        return _unwrap_enum(v)
+
     class Config:
         from_attributes = True
 
@@ -54,6 +66,14 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    role: Role
+    user_id: str
+    name: str
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def _coerce_role(cls, v):
+        return _unwrap_enum(v)
 
 
 # ---------- Screening form ----------
@@ -65,15 +85,15 @@ class ScreeningFormIn(BaseModel):
     automatically by Pydantic before it ever reaches the prediction logic.
     """
     age_bracket: AgeBracket
-    feeling_sad: Level
-    irritable: Level
-    trouble_sleeping: Level
-    trouble_concentrating: Level
-    appetite_changes: Level
-    feeling_anxious: Level
-    feeling_guilty: Level
-    bonding_difficulty: Level
-    self_harm_thoughts: Level
+    feeling_sad: LevelLiteral
+    irritable: LevelLiteral
+    trouble_sleeping: LevelLiteral
+    trouble_concentrating: LevelLiteral
+    appetite_changes: LevelLiteral
+    feeling_anxious: LevelLiteral
+    feeling_guilty: LevelLiteral
+    bonding_difficulty: LevelLiteral
+    self_harm_thoughts: LevelLiteral
 
 
 class PredictionOut(BaseModel):
@@ -85,6 +105,11 @@ class PredictionOut(BaseModel):
     crisis_message: Optional[str] = None
     predicted_at: datetime
 
+    @field_validator("risk_level", mode="before")
+    @classmethod
+    def _coerce_risk_level(cls, v):
+        return _unwrap_enum(v)
+
     class Config:
         from_attributes = True
 
@@ -92,9 +117,46 @@ class PredictionOut(BaseModel):
 class ScreeningHistoryItem(BaseModel):
     form_id: str
     submission_date: datetime
+    risk_level: Optional[RiskLevel] = None
+    probability_score: Optional[float] = None
+    crisis_flagged: Optional[bool] = None
+    # The healthcare worker's own independent judgment for this screening, if one has been
+    # recorded — deliberately separate from risk_level (the ML prediction) above.
+    clinical_risk_level: Optional[RiskLevel] = None
+    clinical_notes: Optional[str] = None
+
+    @field_validator("risk_level", "clinical_risk_level", mode="before")
+    @classmethod
+    def _coerce_risk_level(cls, v):
+        return _unwrap_enum(v)
+
+    class Config:
+        from_attributes = True
+
+
+# ---------- Clinical assessment ----------
+
+class ClinicalAssessmentIn(BaseModel):
+    """A healthcare worker's independent risk judgment for a screening, recorded separately
+    from the ML prediction. Over time, (screening form responses -> clinical_risk_level) pairs
+    form a non-circular labeled dataset for a future retrain — unlike the current training
+    label, this one isn't derived from the same features used as model input."""
     risk_level: RiskLevel
-    probability_score: float
-    crisis_flagged: bool
+    notes: Optional[str] = None
+
+
+class ClinicalAssessmentOut(BaseModel):
+    id: str
+    form_id: str
+    worker_id: str
+    risk_level: RiskLevel
+    notes: Optional[str] = None
+    assessed_at: datetime
+
+    @field_validator("risk_level", mode="before")
+    @classmethod
+    def _coerce_risk_level(cls, v):
+        return _unwrap_enum(v)
 
     class Config:
         from_attributes = True
@@ -103,9 +165,15 @@ class ScreeningHistoryItem(BaseModel):
 class PatientSummary(BaseModel):
     mother_id: str
     name: str
+    email: EmailStr
     latest_risk_level: Optional[RiskLevel] = None
     latest_submission_date: Optional[datetime] = None
     total_screenings: int
+
+    @field_validator("latest_risk_level", mode="before")
+    @classmethod
+    def _coerce_latest_risk_level(cls, v):
+        return _unwrap_enum(v)
 
 
 # ---------- Reports ----------
