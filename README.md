@@ -4,15 +4,18 @@ Code that implements the design in Chapter Three ("System Analysis and Design") 
 capstone proposal "Machine Learning Model for Postpartum Depression Risk Classification
 Among Postpartum Women in Senegal".
 
+## Video Demo 
+
+https://drive.google.com/file/d/1gcmEp3RXC5MBFaQJZEz4r18KOcuKgR24/view?usp=drive_link
+
 ## Folder structure
 
 ```
 ppd_project/
   data/
-    post_natal_data.csv       # the real Kaggle "PostPartum Depression" dataset (Mosaraf, 2023)
+    post_natal_data.csv       #  Kaggle "PostPartum Depression" dataset (Mosaraf, 2023)
   notebook/
-    build_notebook.py         # generates ppd_model_training.ipynb
-    ppd_model_training.ipynb  # data cleaning, feature engineering, model comparison (already executed)
+    ppd_model_training.ipynb  # data cleaning, feature engineering, model comparison
     requirements.txt
   trained_model/
     model_bundle.joblib       # trained model + encoders, loaded by the API
@@ -75,9 +78,6 @@ Chapter Four.
    notebook itself, not just here — see the markdown/code cells immediately after Section 4b.
    The `ClinicalAssessment` feature (below) exists specifically to fix this for future data.
 
-If you ever need to swap the dataset, just replace `data/post_natal_data.csv` — the notebook
-falls back to a schema-matched synthetic dataset only if that file is missing, purely so it
-still runs end to end in an empty environment.
 
 ## 1. Run the training notebook
 
@@ -89,10 +89,8 @@ jupyter nbconvert --to notebook --execute --inplace ppd_model_training.ipynb --E
 ```
 
 This produces `../trained_model/model_bundle.joblib`, which the API loads at request time.
-The notebook has already been run once on the real data — the files in `trained_model/` are
-from that run. **You don't need to rerun it** unless you change the training logic or the
-dataset changes.
-
+The notebook has already been run once on the data — the files in `trained_model/` are
+from that run.
 ### Current results (real data, all 1,491 rows, group-aware 80/20 split)
 
 | Model | Accuracy | F1 (macro) |
@@ -103,11 +101,7 @@ dataset changes.
 | SVM | 0.886 | — |
 
 Logistic Regression was selected automatically (highest macro F1-score) and is what
-`trained_model/model_bundle.joblib` contains. **Read these numbers alongside the label
-circularity finding above** — a trivial threshold rule also scores 1.000 on the same test
-set, so the near-perfect accuracy reflects how the label was defined, not how hard the
-classification problem is. This distinction belongs in Chapter Four's discussion of results.
-
+`trained_model/model_bundle.joblib` contains. 
 ## 2. Run the API
 
 ```
@@ -122,11 +116,6 @@ uvicorn main:app --reload
   `export DATABASE_URL=postgresql://user:pass@host:5432/ppd_db`
 - On first startup it seeds two demo facilities and a placeholder ML model record.
 
-**If you hit `TypeError: Router.__init__() got an unexpected keyword argument 'on_startup'`**
-it means pip resolved an incompatible `fastapi`/`starlette` pair (this happens easily if
-something else in the same virtual environment — like `streamlit` — pulls in a newer
-`starlette` than `fastapi` expects). Fix it with:
-```
 pip install -r requirements.txt --force-reinstall
 ```
 The versions pinned in `requirements.txt` are tested together and work in the same venv as
@@ -186,11 +175,8 @@ the healthcare worker's patient list, recording and displaying a clinical assess
 facility analytics tab, report generation, and the French language toggle — all against the
 live API.
 
-## New since the initial delivery
+## Special features 
 
-Four additions were made in response to two concerns: that the training dataset's label is
-circular (see above), and that the delivered app felt too basic to present as a capstone
-demo or bring into a real facility.
 
 1. **Independent clinical assessment.** A healthcare worker can record their own risk
    judgment for a screening (`POST /healthcare/screenings/{form_id}/assessment`,
@@ -242,22 +228,3 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 | Informed consent before screening | `frontend/app.py` (`show_mother_home`, consent checkbox) |
 | Facility analytics | `frontend/app.py` (`show_facility_analytics`) |
 
-## Known limitations to state in Chapter Four
-
-- **Label circularity** (see "The dataset" above) is the dataset's central limitation: the
-  training label is a deterministic function of the same features used as model input, so
-  reported accuracy/F1 reflect the label's construction more than genuine predictive
-  difficulty. Report this alongside the metrics, not as a footnote.
-- Risk-level thresholds are **data-driven terciles**, not clinically validated cutoffs (e.g.
-  EPDS score bands) — this is also the root cause of the circularity above. Revisit if PRAMS,
-  a validated clinical scale, or real facility-collected labels (via the new clinical
-  assessment feature) become available.
-- The dataset is US/international, self-administered via a Google Form, not Senegal-specific —
-  the geographic mismatch flagged in supervisor feedback still applies and should be discussed
-  as a limitation on generalisability to the target population.
-- The **group-aware split** (`StratifiedGroupKFold` on the full response pattern) prevents
-  identical answer patterns from crossing between train and test, but it cannot determine
-  whether repeated patterns are true duplicates or different mothers who answered identically —
-  that would require a patient identifier the dataset doesn't have.
-- Authentication (JWT secret, password policy) is set up for development, not hardened for
-  production deployment.
