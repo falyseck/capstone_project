@@ -158,9 +158,10 @@ logged in.
   crisis message if self-harm thoughts are flagged → view past screenings under "My history",
   including any clinical assessment a healthcare worker has since recorded for that screening.
 - **Healthcare worker flow:** register → log in → see the list of mothers registered at your
-  own facility only → view a mother's screening history → record your own independent clinical
-  assessment on a screening (separate from the ML prediction) → view facility-level risk
-  analytics → generate a text report (includes the clinical assessment when one exists).
+  own facility only → view a mother's screening history and each submitted answer before
+  recording your own independent clinical assessment on a screening (separate from the ML
+  prediction) → view facility-level risk analytics → generate a text report (includes each
+  submitted form and the clinical assessment when one exists).
 
 To verify the frontend against a running API without opening a browser:
 
@@ -227,4 +228,3 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 | Independent clinical assessment (non-circular future labels) | `api/models.py` (`ClinicalAssessment`), `api/main.py` (`add_clinical_assessment`), `frontend/app.py` (clinical assessment form in `show_worker_home`) |
 | Informed consent before screening | `frontend/app.py` (`show_mother_home`, consent checkbox) |
 | Facility analytics | `frontend/app.py` (`show_facility_analytics`) |
-

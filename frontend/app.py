@@ -188,6 +188,10 @@ TRANSLATIONS = {
               "modèle plus solide et non circulaire.",
     },
     "select_screening": {"en": "Select a screening", "fr": "Sélectionner un dépistage"},
+    "patient_form_preview": {
+        "en": "Patient's submitted form",
+        "fr": "Formulaire soumis par la patiente",
+    },
     "your_assessment": {"en": "Your risk assessment", "fr": "Votre évaluation du risque"},
     "notes_optional": {"en": "Notes (optional)", "fr": "Remarques (facultatif)"},
     "save_assessment": {"en": "Save assessment", "fr": "Enregistrer l'évaluation"},
@@ -732,23 +736,45 @@ def show_worker_home():
                     st.markdown(f"##### 🩺 {t('clinical_assessment_header')}")
                     st.caption(t("clinical_assessment_intro"))
 
-                    form_options = {
-                        f"{h['submission_date'][:10]} — {t('ml_label')}: "
-                        f"{risk_label(h['risk_level']) if h.get('risk_level') else t('not_available')}": h["form_id"]
-                        for h in history
-                    }
+                    screenings_by_id = {item["form_id"]: item for item in history}
+                    screening_ids = list(screenings_by_id)
+                    selected_form_id = st.selectbox(
+                        t("select_screening"),
+                        screening_ids,
+                        format_func=lambda form_id: (
+                            f"{screenings_by_id[form_id]['submission_date'][:10]} — "
+                            f"{t('ml_label')}: "
+                            f"{risk_label(screenings_by_id[form_id]['risk_level']) if screenings_by_id[form_id].get('risk_level') else t('not_available')} "
+                            f"({form_id[:8]})"
+                        ),
+                    )
+                    selected_screening = screenings_by_id[selected_form_id]
+                    with st.container(border=True):
+                        st.markdown(f"##### {t('patient_form_preview')}")
+                        responses = selected_screening.get("responses", {})
+                        st.markdown(
+                            f"**{t('age_label')}:** "
+                            f"{responses.get('age_bracket', t('not_available'))}"
+                        )
+                        for key, question_en, question_fr, _ in SYMPTOM_QUESTIONS:
+                            question = question_en if lang() == "en" else question_fr
+                            answer = responses.get(key, t("not_available"))
+                            st.markdown(f"**{question}** — {level_option_label(answer)}")
+
+                        sh_key, sh_question_en, sh_question_fr = SELF_HARM_QUESTION
+                        sh_question = sh_question_en if lang() == "en" else sh_question_fr
+                        sh_answer = responses.get(sh_key, t("not_available"))
+                        st.markdown(f"**{sh_question}** — {level_option_label(sh_answer)}")
+
                     with st.form("clinical_assessment_form"):
-                        selected_form_label = st.selectbox(t("select_screening"), list(form_options.keys()))
                         assessed_risk = st.radio(
                             t("your_assessment"), RISK_LEVELS, format_func=risk_label, horizontal=True,
                         )
                         notes = st.text_area(t("notes_optional"))
                         assess_submitted = st.form_submit_button(t("save_assessment"), use_container_width=True)
-
                     if assess_submitted:
-                        form_id = form_options[selected_form_label]
                         resp = api_post(
-                            f"/healthcare/screenings/{form_id}/assessment",
+                            f"/healthcare/screenings/{selected_form_id}/assessment",
                             json={"risk_level": assessed_risk, "notes": notes or None},
                             headers=auth_headers(),
                         )

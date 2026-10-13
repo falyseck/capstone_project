@@ -139,6 +139,12 @@ at4.run()
 history_tab4 = at4.tabs[0]
 assert len(history_tab4.selectbox) >= 1, "expected a 'select a screening' dropdown for the assessment form"
 history_tab4.selectbox[0].set_value(history_tab4.selectbox[0].options[0])
+at4.run()
+worker_preview_text = " ".join(m.value for m in at4.tabs[0].markdown)
+assert "Patient's submitted form" in worker_preview_text
+assert "Have you been feeling sad or tearful?" in worker_preview_text
+assert "No" in worker_preview_text
+history_tab4 = at4.tabs[0]
 history_tab4.radio[0].set_value("medium")
 history_tab4.text_area[0].set_value("Mother seemed more anxious in person than the form suggests.")
 history_tab4.button[0].click().run()
@@ -168,6 +174,9 @@ assert len(report_tab.text_area) >= 1
 report_content = report_tab.text_area[0].value
 assert "Test Mother" in report_content
 assert "clinical assessment" in report_content.lower()
+assert "Patient-submitted form:" in report_content
+assert "Age range:" in report_content
+assert "Feeling sad or tearful:" in report_content
 print("   OK — report generated and displayed")
 print("   Report preview:")
 print("   " + report_content.replace("\n", "\n   "))

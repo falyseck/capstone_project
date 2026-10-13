@@ -99,6 +99,7 @@ def _history_item(form: m.ScreeningForm) -> s.ScreeningHistoryItem:
     return s.ScreeningHistoryItem(
         form_id=form.id,
         submission_date=form.submission_date,
+        responses=json.loads(form.responses),
         risk_level=risk_level,
         probability_score=probability_score,
         crisis_flagged=crisis_flagged,
@@ -282,13 +283,29 @@ def generate_report(
     for f in forms:
         risk = f.prediction.risk_level.value if f.prediction else "n/a"
         crisis = "YES" if (f.crisis_check and f.crisis_check.flagged) else "No"
-        line = f"- {f.submission_date.isoformat()}: ML risk={risk}, crisis_flag={crisis}"
+        lines.append(f"- {f.submission_date.isoformat()}: ML risk={risk}, crisis_flag={crisis}")
+        responses = json.loads(f.responses)
+        response_labels = {
+            "age_bracket": "Age range",
+            "feeling_sad": "Feeling sad or tearful",
+            "irritable": "Irritability towards baby or partner",
+            "trouble_sleeping": "Trouble sleeping",
+            "trouble_concentrating": "Difficulty concentrating or making decisions",
+            "appetite_changes": "Appetite changes",
+            "feeling_anxious": "Feeling anxious",
+            "feeling_guilty": "Feelings of guilt",
+            "bonding_difficulty": "Difficulty bonding with baby",
+            "self_harm_thoughts": "Thoughts of self-harm",
+        }
+        lines.append("  Patient-submitted form:")
+        for field, label in response_labels.items():
+            lines.append(f"    {label}: {responses.get(field, 'Not available')}")
         if f.clinical_assessments:
             latest = f.clinical_assessments[0]
-            line += f", clinical assessment={latest.risk_level.value}"
+            line = f"  clinical assessment={latest.risk_level.value}"
             if latest.notes:
                 line += f" ({latest.notes})"
-        lines.append(line)
+            lines.append(line)
 
     content = "\n".join(lines)
     report = m.Report(mother_id=mother_id, generated_by=current_user.id, content=content)

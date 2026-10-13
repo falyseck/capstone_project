@@ -116,12 +116,20 @@ mother_summary = next(p for p in patients if p["mother_id"] == mother["id"])
 assert mother_summary["total_screenings"] == 2
 print(f"   OK — found mother with total_screenings={mother_summary['total_screenings']}")
 
-print("9. Healthcare worker B (different facility) is forbidden from accessing the mother")
+print("9. Healthcare worker A can review submitted answers before assessing risk")
+resp = client.get(f"/healthcare/patients/{mother['id']}/history", headers=auth_headers(worker_a_token))
+assert resp.status_code == 200, resp.text
+worker_history = resp.json()
+screening = next(h for h in worker_history if h["form_id"] == result1["form_id"])
+assert screening["responses"] == low_risk_form
+print("   OK — submitted screening answers are included in the worker's history")
+
+print("10. Healthcare worker B (different facility) is forbidden from accessing the mother")
 resp = client.get(f"/healthcare/patients/{mother['id']}/history", headers=auth_headers(worker_b_token))
 assert resp.status_code == 403, resp.text
 print(f"   OK — worker B got status {resp.status_code} as expected")
 
-print("10. Healthcare worker A records an independent clinical assessment on the low-risk form")
+print("11. Healthcare worker A records an independent clinical assessment on the low-risk form")
 resp = client.post(
     f"/healthcare/screenings/{result1['form_id']}/assessment",
     json={"risk_level": "medium", "notes": "Mother seemed more anxious in person than the form suggests."},
@@ -132,7 +140,7 @@ assessment = resp.json()
 assert assessment["risk_level"] == "medium"
 print(f"   OK — clinical assessment recorded: {assessment['risk_level']} (ML said {result1['risk_level']})")
 
-print("11. That assessment now shows up in the mother's history, separate from the ML prediction")
+print("12. That assessment now shows up in the mother's history, separate from the ML prediction")
 resp = client.get("/screening/history", headers=auth_headers(mother_token))
 assert resp.status_code == 200, resp.text
 history = resp.json()
@@ -141,7 +149,7 @@ assert item["risk_level"] == result1["risk_level"]
 assert item["clinical_risk_level"] == "medium"
 print(f"   OK — ML risk_level={item['risk_level']}, clinical_risk_level={item['clinical_risk_level']}")
 
-print("12. Healthcare worker B cannot record an assessment for a mother outside their facility")
+print("13. Healthcare worker B cannot record an assessment for a mother outside their facility")
 resp = client.post(
     f"/healthcare/screenings/{result1['form_id']}/assessment",
     json={"risk_level": "high"},
@@ -150,14 +158,18 @@ resp = client.post(
 assert resp.status_code == 403, resp.text
 print(f"   OK — worker B got status {resp.status_code} as expected")
 
-print("13. Healthcare worker A generates a report for the mother")
+print("14. Healthcare worker A generates a report for the mother")
 resp = client.post(f"/healthcare/patients/{mother['id']}/report", headers=auth_headers(worker_a_token))
 assert resp.status_code == 200, resp.text
 report = resp.json()
 assert report["mother_id"] == mother["id"]
 assert report["generated_by"] == worker_a["id"]
 assert "clinical assessment=medium" in report["content"]
-print("   OK — report generated (includes the clinical assessment):")
+assert "Patient-submitted form:" in report["content"]
+assert "Age range: 25-30" in report["content"]
+assert "Feeling sad or tearful: No" in report["content"]
+assert "Thoughts of self-harm: No" in report["content"]
+print("   OK — report includes submitted answers and the clinical assessment:")
 print("   " + report["content"].replace("\n", "\n   "))
 
 print("\nALL CHECKS PASSED.")
