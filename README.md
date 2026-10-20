@@ -223,8 +223,13 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 | 3.5.2 Backend / API | `api/main.py` |
 | Class diagram / ERD | `api/models.py` |
 | Facility-scoped access control | `api/main.py` (`_get_mother_in_same_facility`), proven in `api/test_flow.py` steps 9 and 12 |
-| Self-harm / crisis check (kept separate from the ML model) | `api/ml_service.py` (`check_self_harm`), `api/models.py` (`CrisisCheck`) |
+| Self-harm risk adjustment and separate crisis check | `api/ml_service.py` (`adjust_risk_for_self_harm`, `check_self_harm`), `api/models.py` (`CrisisCheck`) |
 | Home screening for mothers with risk-tiered recommendations | `api/ml_service.py` (`RECOMMENDATIONS`), `frontend/app.py` (`show_mother_home`) |
 | Independent clinical assessment (non-circular future labels) | `api/models.py` (`ClinicalAssessment`), `api/main.py` (`add_clinical_assessment`), `frontend/app.py` (clinical assessment form in `show_worker_home`) |
 | Informed consent before screening | `frontend/app.py` (`show_mother_home`, consent checkbox) |
 | Facility analytics | `frontend/app.py` (`show_facility_analytics`) |
+
+At inference time, a "Sometimes" self-harm response raises a low model result to medium,
+and "Yes" sets the risk level to high. "No" leaves the model result unchanged. The separate
+crisis flag/message remains active for either "Sometimes" or "Yes"; `probability_score`
+continues to report the model's confidence before this safety adjustment.

@@ -81,6 +81,7 @@ def encode_form(responses: Dict) -> pd.DataFrame:
 
 
 def predict_risk(responses: Dict) -> Tuple[str, float]:
+    """Return the adjusted risk tier and the model's baseline confidence."""
     bundle = _load_bundle()
     model = bundle["model"]
     label_encoder = bundle["label_encoder"]
@@ -88,6 +89,7 @@ def predict_risk(responses: Dict) -> Tuple[str, float]:
     X = encode_form(responses)
     pred_encoded = model.predict(X)[0]
     risk_level = label_encoder.inverse_transform([pred_encoded])[0]
+    risk_level = adjust_risk_for_self_harm(risk_level, responses)
 
     proba = None
     if hasattr(model, "predict_proba"):
@@ -97,6 +99,16 @@ def predict_risk(responses: Dict) -> Tuple[str, float]:
         proba = 1.0
 
     return risk_level, proba
+
+
+def adjust_risk_for_self_harm(risk_level: str, responses: Dict) -> str:
+    """Apply the self-harm safety threshold to the model's baseline risk level."""
+    self_harm_response = responses.get(SELF_HARM_COL)
+    if self_harm_response == "Yes":
+        return "high"
+    if self_harm_response == "Sometimes" and risk_level == "low":
+        return "medium"
+    return risk_level
 
 
 def recommendation_for(risk_level: str) -> str:

@@ -85,13 +85,16 @@ print(f"   OK — risk_level={result1['risk_level']}, crisis_flagged={result1['c
 print("5. Mother submits a form with self-harm thoughts flagged")
 crisis_form = dict(low_risk_form)
 crisis_form["self_harm_thoughts"] = "Yes"
-crisis_form["feeling_sad"] = "Yes"
 resp = client.post("/screening/submit", json=crisis_form, headers=auth_headers(mother_token))
 assert resp.status_code == 200, resp.text
 result2 = resp.json()
+assert result2["risk_level"] == "high"
 assert result2["crisis_flagged"] is True
 assert result2["crisis_message"] is not None
-print(f"   OK — crisis_flagged={result2['crisis_flagged']}, message present: {bool(result2['crisis_message'])}")
+print(
+    f"   OK — risk_level={result2['risk_level']}, crisis_flagged={result2['crisis_flagged']}, "
+    f"message present: {bool(result2['crisis_message'])}"
+)
 
 print("6. Incomplete form submission is rejected")
 incomplete_form = dict(low_risk_form)
