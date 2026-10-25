@@ -40,7 +40,7 @@ ppd_project/
 
 ## The dataset
 
-This project trains on the real Kaggle **"PostPartum Depression"** dataset (Mosaraf, 2023),
+This project trains on the Kaggle **"PostPartum Depression"** dataset (Mosaraf, 2023),
 included at `data/post_natal_data.csv`. Two data-quality issues in the raw file are handled
 explicitly by the notebook rather than hidden, and a third, more fundamental limitation of the
 dataset was discovered while investigating the first two — all three should be discussed in
