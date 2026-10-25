@@ -215,19 +215,26 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 
 ## Chapter Three → code map
 
-| Chapter Three section | Code |
+### Chapter sections
+
+| Section | Implementation |
 |---|---|
-| 3.4 Data Definition and Acquisition | `notebook/build_notebook.py` (RENAME_MAP, VALUE_NORMALIZATION) |
-| 3.4 ML training pipeline (cleaning, feature engineering, group-aware split, SMOTE, model comparison) | `notebook/ppd_model_training.ipynb` |
-| 3.5.1 Frontend (Streamlit) | `frontend/app.py` |
-| 3.5.2 Backend / API | `api/main.py` |
-| Class diagram / ERD | `api/models.py` |
-| Facility-scoped access control | `api/main.py` (`_get_mother_in_same_facility`), proven in `api/test_flow.py` steps 9 and 12 |
-| Self-harm risk adjustment and separate crisis check | `api/ml_service.py` (`adjust_risk_for_self_harm`, `check_self_harm`), `api/models.py` (`CrisisCheck`) |
-| Home screening for mothers with risk-tiered recommendations | `api/ml_service.py` (`RECOMMENDATIONS`), `frontend/app.py` (`show_mother_home`) |
-| Independent clinical assessment (non-circular future labels) | `api/models.py` (`ClinicalAssessment`), `api/main.py` (`add_clinical_assessment`), `frontend/app.py` (clinical assessment form in `show_worker_home`) |
-| Informed consent before screening | `frontend/app.py` (`show_mother_home`, consent checkbox) |
-| Facility analytics | `frontend/app.py` (`show_facility_analytics`) |
+| 3.4 Data definition and acquisition | `notebook/ppd_model_training.ipynb` — field mappings and value normalization |
+| 3.4 Model training | `notebook/ppd_model_training.ipynb` — preprocessing, group-aware split, SMOTE, and model comparison |
+| 3.5.1 Frontend | `frontend/app.py` — Streamlit interface |
+| 3.5.2 Backend | `api/main.py` — FastAPI endpoints |
+| Class diagram / ERD | `api/models.py` — database models |
+
+### Implemented application features
+
+| Feature | Implementation and evidence |
+|---|---|
+| Facility access control | `api/main.py`; tested in `api/test_flow.py` |
+| Self-harm risk adjustment and crisis check | `api/ml_service.py`; `CrisisCheck` in `api/models.py` |
+| Screening and recommendations | `api/ml_service.py`; mother flow in `frontend/app.py` |
+| Clinical assessment | `api/models.py`, `api/main.py`, and `frontend/app.py` |
+| Consent before screening | Mother flow in `frontend/app.py` |
+| Facility analytics | `show_facility_analytics` in `frontend/app.py` |
 
 At inference time, a "Sometimes" self-harm response raises a low model result to medium,
 and "Yes" sets the risk level to high. "No" leaves the model result unchanged. The separate
