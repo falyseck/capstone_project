@@ -6,7 +6,12 @@ Among Postpartum Women in Senegal".
 
 ## Video Demo 
 
-https://drive.google.com/file/d/1gcmEp3RXC5MBFaQJZEz4r18KOcuKgR24/view?usp=drive_link
+https://drive.google.com/file/d/1V_NINR6LL4GiOsT9lDJsqSv0KyuAyKBO/view?usp=drive_link
+
+
+## Technical Report 
+
+
 
 ## Folder structure
 
