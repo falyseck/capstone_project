@@ -11,7 +11,7 @@ https://drive.google.com/file/d/1V_NINR6LL4GiOsT9lDJsqSv0KyuAyKBO/view?usp=drive
 
 ## Technical Report 
 
-
+https://drive.google.com/file/d/187xt_j-4toA8UpRdb_vj6x62Wc1OZOKF/view?usp=drive_link
 
 ## Folder structure
 
