@@ -232,8 +232,8 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 
 ### Implemented application features
 
-| Feature | Implementation and evidence |
-|---|---|
+| "Feature" | "Implementation and evidence" |
+|"---"|"---"|
 | "Facility access control" |" `api/main.py`; tested in `api/test_flow.py` "|
 | "Self-harm risk adjustment and crisis check" | " `api/ml_service.py`; `CrisisCheck` in `api/models.py`" |
 | "Screening and recommendations" | " `api/ml_service.py`; mother flow in `frontend/app.py` " |
