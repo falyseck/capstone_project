@@ -222,7 +222,6 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 
 ### Chapter sections
 
-
 | Section                        | Implementation                                                                 |
 |--------------------------------|-------------------------------------------------------------------------------|
 | 3.4 Data definition and acquisition | `notebook/ppd_model_training.ipynb` — field mappings and value normalization |
@@ -231,9 +230,7 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 | 3.5.2 Backend                  | `api/main.py` — FastAPI endpoints                                             |
 | Class diagram - ERD            | `api/models.py` — database models                                             |
 
-
 ### Implemented application features
-
 
 | Feature                                   | Implementation and evidence                                      |
 |-------------------------------------------|------------------------------------------------------------------|
@@ -243,7 +240,6 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 | Clinical assessment                       | `api/models.py`, `api/main.py`, and `frontend/app.py`             |
 | Consent before screening                  | Mother flow in `frontend/app.py`                                  |
 | Facility analytics                        | `show_facility_analytics` in `frontend/app.py`                    |
-
 
 At inference time, a "Sometimes" self-harm response raises a low model result to medium,
 and "Yes" sets the risk level to high. "No" leaves the model result unchanged. The separate
