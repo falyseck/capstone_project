@@ -222,6 +222,7 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 
 ### Chapter sections
 
+
 | Section                        | Implementation                                                                 |
 |--------------------------------|-------------------------------------------------------------------------------|
 | 3.4 Data definition and acquisition | `notebook/ppd_model_training.ipynb` — field mappings and value normalization |
@@ -232,6 +233,7 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 
 
 ### Implemented application features
+
 
 | Feature                                   | Implementation and evidence                                      |
 |-------------------------------------------|------------------------------------------------------------------|
