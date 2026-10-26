@@ -100,10 +100,10 @@ from that run.
 
 | Model | Accuracy | F1 (macro) |
 |---|---|---|
-| **Logistic Regression (selected)** | 0.993 | 0.994 |
-| XGBoost | 0.919 | — |
-| Random Forest | 0.909 | — |
-| SVM | 0.886 | — |
+| **Logistic Regression (selected)** | 0.984 | 0.983|
+| XGBoost | 0.915 | 0.919 |
+| Random Forest | 0.871 | 0.872 |
+| SVM |  0.924 | 0.922  |
 
 Logistic Regression was selected automatically (highest macro F1-score) and is what
 `trained_model/model_bundle.joblib` contains. 
@@ -228,7 +228,7 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 | 3.4 Model training | `notebook/ppd_model_training.ipynb` — preprocessing, group-aware split, SMOTE, and model comparison |
 | 3.5.1 Frontend | `frontend/app.py` — Streamlit interface |
 | 3.5.2 Backend | `api/main.py` — FastAPI endpoints |
-| Class diagram / ERD | `api/models.py` — database models |
+| Class diagram - ERD | `api/models.py` — database models |
 
 ### Implemented application features
 
