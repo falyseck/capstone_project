@@ -231,15 +231,16 @@ the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will foll
 | Class diagram - ERD            | `api/models.py` — database models                                             |
 
 ### Implemented application features
+Implemented features
 
-| Feature                                   | Implementation and evidence                                      |
-|-------------------------------------------|------------------------------------------------------------------|
-| Facility access control                   | `api/main.py`; tested in `api/test_flow.py`                      |
-| Self-harm risk adjustment and crisis check| `api/ml_service.py`; `CrisisCheck` in `api/models.py`            |
-| Screening and recommendations             | `api/ml_service.py`; mother flow in `frontend/app.py`            |
-| Clinical assessment                       | `api/models.py`, `api/main.py`, and `frontend/app.py`            |
-| Consent before screening                  | Mother flow in `frontend/app.py`                                 |
-| Facility analytics                        | `show_facility_analytics` in `frontend/app.py`                   |
+| Feature | Implementation and evidence |
+| --- | --- |
+| Facility access control | `api/main.py`; tested in `api/test_flow.py` |
+| Self-harm risk adjustment and crisis check | `api/ml_service.py`; `CrisisCheck` in `api/models.py` |
+| Screening and recommendations | `api/ml_service.py`; mother flow in `frontend/app.py` |
+| Clinical assessment | `api/models.py`, `api/main.py`, and `frontend/app.py` |
+| Consent before screening | Mother flow in `frontend/app.py` |
+| Facility analytics | `show_facility_analytics` in `frontend/app.py` |
 
 At inference time, a "Sometimes" self-harm response raises a low model result to medium,
 and "Yes" sets the risk level to high. "No" leaves the model result unchanged. The separate
