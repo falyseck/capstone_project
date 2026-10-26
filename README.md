@@ -181,6 +181,8 @@ the healthcare worker's patient list, recording and displaying a clinical assess
 facility analytics tab, report generation, and the French language toggle — all against the
 live API.
 
+```
+
 ## Special features 
 
 
