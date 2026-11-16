@@ -16,9 +16,9 @@ https://drive.google.com/file/d/187xt_j-4toA8UpRdb_vj6x62Wc1OZOKF/view?usp=drive
 ## Folder structure
 
 ```
-ppd_project/
+capstone_project/
   data/
-    post_natal_data.csv       #  Kaggle "PostPartum Depression" dataset (Mosaraf, 2023)
+    post_natal_data.csv       # Kaggle "PostPartum Depression" dataset (Mosaraf, 2023)
   notebook/
     ppd_model_training.ipynb  # data cleaning, feature engineering, model comparison
     requirements.txt
@@ -29,18 +29,39 @@ ppd_project/
     confusion_matrices.png
     feature_importance.png
   api/
-    main.py                   # FastAPI app: auth, screening, clinical assessment, healthcare-worker endpoints
-    models.py                 # SQLAlchemy ORM models (matches the ERD/class diagram)
-    schemas.py                # Pydantic request/response schemas
+    main.py                   # FastAPI app entry point
     auth.py                   # JWT auth, password hashing, role-based access control
-    ml_service.py             # loads model_bundle.joblib, runs predictions, crisis check
-    database.py                # SQLAlchemy engine/session setup
-    test_flow.py               # end-to-end smoke test (13 checks) — no server needed
+    database.py               # SQLAlchemy engine/session setup
+    dependencies.py           # shared auth/session dependencies
+    models.py                 # SQLAlchemy ORM models and database schema
+    risk_engine.py            # model prediction and crisis-risk logic
+    schemas.py                # Pydantic request/response schemas
+    routers/
+      auth_routes.py          # auth-related API routes
+      healthcare.py            # facility and healthcare worker endpoints
+      screening.py            # screening submission and history endpoints
+    test_flow.py              # end-to-end smoke test (13 checks) — no server needed
+    tests/
+      conftest.py             # shared test fixtures
+      test_api.py             # API integration tests
+      test_auth.py            # authentication tests
+      test_risk_engine.py     # risk-engine tests
     requirements.txt
   frontend/
     app.py                    # Streamlit app (mother + healthcare worker views, EN/FR)
+    api_client.py             # shared API client calls for the UI
+    components.py             # reusable UI components
+    config.py                 # environment/config settings
+    i18n.py                   # translations and locale helpers
+    session.py                # session state helpers
+    styles.py                 # app styling/theme helpers
+    views/
+      auth_view.py            # login/register UI
+      mother_view.py          # mother screening flow
+      worker_view.py          # healthcare-worker flow
     test_frontend.py          # end-to-end UI test against a running API
     requirements.txt
+  render.yaml                 # Render deployment blueprint
 ```
 
 ## The dataset
@@ -56,13 +77,12 @@ Chapter Four.
    with at least one other row. This *looks* like duplication, but there's no patient identifier
    in the data, so a repeated pattern could equally be two different mothers who genuinely gave
    the same answers on an 8-item scale with only 3 possible levels each — dropping those rows
-   would silently throw away real respondents on an unverifiable assumption. The notebook
-   (`build_notebook.py`, Section 4) keeps **all 1,491 valid rows** and instead makes the
-   train/test split **group-aware**: `StratifiedGroupKFold` guarantees that no response pattern
-   ("group") appears in both the training set and the test set, so whether or not a given
-   repeat is a true duplicate, it can never leak between train and test. This is the
-   leakage-safe fix for the question "are these duplicates," because it works regardless of the
-   answer.
+   would silently throw away real respondents on an unverifiable assumption.    The notebook (`notebook/ppd_model_training.ipynb`, Section 4) keeps **all 1,491 valid rows**
+   and instead makes the train/test split **group-aware**: `StratifiedGroupKFold` guarantees
+   that no response pattern ("group") appears in both the training set and the test set, so
+   whether or not a given repeat is a true duplicate, it can never leak between train and test.
+   This is the leakage-safe fix for the question "are these duplicates," because it works
+   regardless of the answer.
 2. **Non-standard category labels.** A few columns use answer phrasing outside the clean
    No / Sometimes / Yes scale (e.g. "Two or more days a week", "Often", "Not at all", "Maybe",
    "Not interested to say"). The notebook normalises these onto the 3-level scale before
@@ -89,7 +109,6 @@ Chapter Four.
 ```
 cd notebook
 pip install -r requirements.txt --break-system-packages
-python3 build_notebook.py
 jupyter nbconvert --to notebook --execute --inplace ppd_model_training.ipynb --ExecutePreprocessor.timeout=300
 ```
 
@@ -232,10 +251,10 @@ The screening form uses these exact field names everywhere — `frontend/app.py`
 `appetite_changes`, `feeling_anxious`, `feeling_guilty`, `bonding_difficulty`,
 `self_harm_thoughts`.
 
-`api/ml_service.py`'s `encode_form()` doesn't hardcode these names — it reads whatever
+`api/risk_engine.py`'s `encode_form()` doesn't hardcode these names — it reads whatever
 `feature_cols` the notebook saved into `model_bundle.joblib` and looks each one up in the
 submitted form by that same name. If you ever rename a field, you only need to update it in
-the notebook and in `frontend/app.py`/`schemas.py` — `ml_service.py` will follow automatically.
+the notebook and in `frontend/app.py`/`schemas.py` — `risk_engine.py` will follow automatically.
 
 ## Chapter Three → code map
 
@@ -254,10 +273,10 @@ Implemented features
 
 | Feature | Implementation and evidence |
 | --- | --- |
-| Facility access control | `api/main.py`; tested in `api/test_flow.py` |
-| Self-harm risk adjustment and crisis check | `api/ml_service.py`; `CrisisCheck` in `api/models.py` |
-| Screening and recommendations | `api/ml_service.py`; mother flow in `frontend/app.py` |
-| Clinical assessment | `api/models.py`, `api/main.py`, and `frontend/app.py` |
+| Facility access control | `api/main.py` and `api/routers/healthcare.py`; tested in `api/test_flow.py` |
+| Self-harm risk adjustment and crisis check | `api/risk_engine.py`; `CrisisCheck` in `api/models.py` |
+| Screening and recommendations | `api/risk_engine.py`; mother flow in `frontend/app.py` |
+| Clinical assessment | `api/models.py`, `api/routers/healthcare.py`, and `frontend/app.py` |
 | Consent before screening | Mother flow in `frontend/app.py` |
 | Facility analytics | `show_facility_analytics` in `frontend/app.py` |
 
