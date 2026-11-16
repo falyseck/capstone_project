@@ -4,7 +4,7 @@ validation (functional requirement 3.2.1 #4: "validate the form and reject incom
 submissions").
 """
 from datetime import datetime
-from typing import Dict, Literal, Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -99,6 +99,7 @@ class ScreeningFormIn(BaseModel):
 class PredictionOut(BaseModel):
     form_id: str
     risk_level: RiskLevel
+    ml_risk_level: Optional[RiskLevel] = None
     probability_score: float
     recommendation_text: str
     crisis_flagged: bool
@@ -117,7 +118,6 @@ class PredictionOut(BaseModel):
 class ScreeningHistoryItem(BaseModel):
     form_id: str
     submission_date: datetime
-    responses: Dict[str, str]
     risk_level: Optional[RiskLevel] = None
     probability_score: Optional[float] = None
     crisis_flagged: Optional[bool] = None

@@ -100,7 +100,8 @@ class PredictionResult(Base):
 
     id = Column(String, primary_key=True, default=_uuid)
     form_id = Column(String, ForeignKey("screening_forms.id"), unique=True, nullable=False)
-    risk_level = Column(Enum(RiskLevelEnum), nullable=False)
+    risk_level = Column(Enum(RiskLevelEnum), nullable=False)  # level shown: model output, raised to high by the crisis rule
+    ml_risk_level = Column(Enum(RiskLevelEnum), nullable=True)  # the model's own output, kept for evaluation/retraining
     probability_score = Column(Float, nullable=False)
     recommendation_text = Column(Text, nullable=False)
     model_version = Column(String, ForeignKey("ml_models.id"), nullable=True)
