@@ -139,6 +139,23 @@ the healthcare worker's patient list, the facility-scoping 403 check, recording 
 back an independent clinical assessment, a second 403 check for cross-facility assessment
 attempts, and report generation (now including the clinical assessment).
 
+## Deploy the API to Render
+
+1. Push this repository to GitHub, including `trained_model/model_bundle.joblib`.
+2. In Render, choose **New → Blueprint**, select the repository, and deploy the
+   `render.yaml` Blueprint.
+3. When the service is live, check `https://<your-service>.onrender.com/health`
+   and open `/docs` for the interactive API documentation.
+
+The Blueprint uses a free web service and temporary SQLite storage at `/tmp/ppd.db`.
+Render's free service filesystem is not persistent, so app data can be lost when the
+service restarts or redeploys. For persistent data, create a Render PostgreSQL database
+and set the API's `DATABASE_URL` environment variable to its connection string; the
+PostgreSQL driver is included in `api/requirements.txt`.
+
+The Blueprint generates a `SECRET_KEY` for token signing. This demo deployment is not
+configured or reviewed for production handling of real patient or health information.
+
 ## 3. Run the frontend
 
 ```

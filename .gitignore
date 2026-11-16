@@ -29,7 +29,7 @@ Thumbs.db
 *.sqlite3
 
 # Model artifacts and generated files
-trained_model/*.joblib
+
 trained_model/*.pkl
 trained_model/*.png
 trained_model/*.json
