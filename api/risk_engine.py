@@ -41,8 +41,8 @@ RECOMMENDATIONS = {
 CRISIS_MESSAGE = (
     "You mentioned thoughts of harming yourself. Your safety matters right now. "
     "Please reach out to a doctor, health worker, or emergency service near you immediately, "
-    "or go to the nearest health facility. If you are in danger right now, call your local "
-    "emergency number. You are not alone, and help is available."
+    "or go to the nearest health facility. If you are in danger right now, call the National Mental Health Helpline at +221 33 889 38 00 "
+    "You are not alone, and help is available."
 )
 
 SELF_HARM_COL = "self_harm_thoughts"
