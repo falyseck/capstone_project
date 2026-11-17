@@ -113,13 +113,35 @@ crisis_texts = " ".join(e.value for e in at3.tabs[0].error)
 assert "harm" in crisis_texts.lower() or "safety" in crisis_texts.lower()
 print("   OK — crisis message displayed on the same page as the result")
 
-print("7. Mother's history tab shows the submitted screening")
+print("7. French screening results and crisis alert are translated")
+lang_select = at3.selectbox[0]
+lang_select.set_value("fr")
+at3.run()
+assert not at3.exception, at3.exception
+screen_tab = at3.tabs[0]
+for radio in screen_tab.radio:
+    if radio.key == "self_harm_thoughts":
+        radio.set_value("Yes")
+    else:
+        radio.set_value("No")
+screen_tab.checkbox[0].set_value(True)
+screen_tab.button[0].click().run()
+assert not at3.exception, at3.exception
+result_texts = " ".join(
+    [m.value for m in at3.tabs[0].markdown]
+    + [e.value for e in at3.tabs[0].error]
+)
+assert "Vos réponses indiquent" in result_texts
+assert "Vous avez mentionné des pensées" in result_texts
+print("   OK — recommendation and crisis alert displayed in French")
+
+print("8. Mother's history tab shows the submitted screening")
 at3.tabs[1].run()
 history_markdown = " ".join(m.value for m in at3.tabs[1].markdown)
 print(f"   history tab text: {history_markdown[:200]}")
 print("   OK — history tab rendered without error")
 
-print("8. Healthcare worker logs in and sees the mother in their patient list")
+print("9. Healthcare worker logs in and sees the mother in their patient list")
 at4 = fresh_app()
 login_tab4 = at4.tabs[0]
 login_tab4.text_input[0].set_value(worker_email)
@@ -133,7 +155,7 @@ assert any(mother_email in opt for opt in patient_options), patient_options
 this_patient_option = next(opt for opt in patient_options if mother_email in opt)
 print(f"   OK — worker sees patient list: {patient_options}")
 
-print("9. Healthcare worker records an independent clinical assessment on the mother's screening")
+print("10. Healthcare worker records an independent clinical assessment on the mother's screening")
 at4.selectbox[0].set_value(this_patient_option)
 at4.run()
 history_tab4 = at4.tabs[0]
@@ -146,7 +168,7 @@ assert not at4.exception, at4.exception
 assert len(at4.tabs[0].success) >= 1, "expected a success message after saving the clinical assessment"
 print("   OK — clinical assessment saved")
 
-print("10. The clinical assessment now shows up alongside the ML prediction in the history card")
+print("11. The clinical assessment now shows up alongside the ML prediction in the history card")
 # A fresh rerun (e.g. the person switching tabs and back) re-fetches history from the API,
 # which is when the just-saved assessment appears in the rendered cards.
 at4.run()
@@ -154,12 +176,12 @@ history_markdown4 = " ".join(m.value for m in at4.tabs[0].markdown)
 assert "Medium risk" in history_markdown4 or "medium" in history_markdown4.lower()
 print("   OK — clinical assessment visible in the worker's history view")
 
-print("11. Facility analytics tab renders without error")
+print("12. Facility analytics tab renders without error")
 analytics_tab4 = at4.tabs[2]
 assert not at4.exception, at4.exception
 print("   OK — analytics tab rendered")
 
-print("12. Healthcare worker generates a report for the mother, including the clinical assessment")
+print("13. Healthcare worker generates a report for the mother, including the clinical assessment")
 report_tab = at4.tabs[1]
 report_tab.button[0].click().run()
 assert not at4.exception, at4.exception
@@ -172,7 +194,7 @@ print("   OK — report generated and displayed")
 print("   Report preview:")
 print("   " + report_content.replace("\n", "\n   "))
 
-print("13. Switching the language toggle to French re-renders without error")
+print("14. Switching the language toggle to French re-renders without error")
 at5 = fresh_app()
 lang_select = at5.selectbox[0]
 assert lang_select.options == ["English", "Français"]

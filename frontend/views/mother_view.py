@@ -52,12 +52,12 @@ def show_mother_home():
 
                     st.write("")
                     if result["crisis_flagged"]:
-                        st.error(f"⚠️ {result['crisis_message']}")
+                        st.error(f"⚠️ {t('crisis_message')}")
 
                     with st.container(border=True):
                         st.markdown(f"##### {t('your_result')}")
                         risk_badge(result["risk_level"])
-                        st.write(result["recommendation_text"])
+                        st.write(t(f"recommendation_{result['risk_level']}"))
                 elif resp.status_code == 401:
                     st.error(t("session_expired"))
                 else:

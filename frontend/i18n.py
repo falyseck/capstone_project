@@ -68,6 +68,41 @@ TRANSLATIONS = {
     },
     "submit_screening": {"en": "Submit screening", "fr": "Soumettre le dépistage"},
     "your_result": {"en": "Your result", "fr": "Votre résultat"},
+    "recommendation_low": {
+        "en": "Your answers show a low level of postpartum depression symptoms right now. "
+              "Keep taking care of yourself, and mention how you are feeling at your next checkup.",
+        "fr": "Vos réponses indiquent actuellement un faible niveau de symptômes de dépression "
+              "post-partum. Continuez à prendre soin de vous et parlez de votre état lors de "
+              "votre prochain rendez-vous médical.",
+    },
+    "recommendation_medium": {
+        "en": "Your answers show some signs of postpartum depression. This does not mean something "
+              "is wrong with you. Please mention these feelings to your doctor, nurse, or midwife at "
+              "your next visit, or sooner if things get harder.",
+        "fr": "Vos réponses indiquent certains signes de dépression post-partum. Cela ne signifie "
+              "pas qu'il y a quelque chose qui ne va pas chez vous. Parlez-en à votre médecin, "
+              "infirmier ou sage-femme lors de votre prochain rendez-vous, ou plus tôt si votre "
+              "état s'aggrave.",
+    },
+    "recommendation_high": {
+        "en": "Your answers show a high level of postpartum depression symptoms. We strongly recommend "
+              "you see a doctor or health worker soon to talk about how you are feeling. You do not have "
+              "to go through this alone.",
+        "fr": "Vos réponses indiquent un niveau élevé de symptômes de dépression post-partum. Nous "
+              "vous recommandons vivement de consulter bientôt un médecin ou un professionnel de "
+              "santé pour parler de votre état. Vous n'avez pas à traverser cette situation seule.",
+    },
+    "crisis_message": {
+        "en": "You mentioned thoughts of harming yourself. Your safety matters right now. "
+              "Please reach out to a doctor, health worker, or emergency service near you immediately, "
+              "or go to the nearest health facility. If you are in danger right now, call the National "
+              "Mental Health Helpline at +221 33 889 38 00. You are not alone, and help is available.",
+        "fr": "Vous avez mentionné des pensées de vous faire du mal. Votre sécurité est importante "
+              "en ce moment. Contactez immédiatement un médecin, un professionnel de santé ou les "
+              "services d'urgence près de chez vous, ou rendez-vous au centre de santé le plus proche. "
+              "Si vous êtes en danger immédiat, appelez la ligne nationale d'écoute en santé mentale "
+              "au +221 33 889 38 00. Vous n'êtes pas seule, de l'aide est disponible.",
+    },
     "session_expired": {
         "en": "Your session has expired. Please log in again.",
         "fr": "Votre session a expiré. Veuillez vous reconnecter.",
