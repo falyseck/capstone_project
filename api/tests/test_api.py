@@ -64,6 +64,12 @@ def test_facility_scoping(client, world):
 
 def test_clinical_assessment_and_report(client, world, answers):
     form_id = client.post("/screening/submit", json=answers, headers=world["mother"]).json()["form_id"]
+    history = client.get(
+        f"/healthcare/patients/{world['mother_id']}/history", headers=world["worker"]
+    ).json()
+    submitted = next(item for item in history if item["form_id"] == form_id)
+    assert submitted["responses"] == answers
+
     r = client.post(f"/healthcare/screenings/{form_id}/assessment", headers=world["worker"],
                     json={"risk_level": "medium", "notes": "seen in clinic"})
     assert r.status_code == 201

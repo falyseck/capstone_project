@@ -157,6 +157,11 @@ TRANSLATIONS = {
               "prédiction du modèle. C'est ce qui permettra aux futures données d'entraîner un "
               "modèle plus solide et non circulaire.",
     },
+    "submitted_answers": {
+        "en": "Patient's answers",
+        "fr": "Réponses de la patiente",
+    },
+    "age_range": {"en": "Age range", "fr": "Tranche d'âge"},
     "select_screening": {"en": "Select a screening", "fr": "Sélectionner un dépistage"},
     "your_assessment": {"en": "Your risk assessment", "fr": "Votre évaluation du risque"},
     "notes_optional": {"en": "Notes (optional)", "fr": "Remarques (facultatif)"},

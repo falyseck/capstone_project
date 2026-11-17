@@ -1,4 +1,6 @@
 """Shared FastAPI dependencies and data-access helpers used by several routers."""
+import json
+
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -33,6 +35,7 @@ def history_item(form: m.ScreeningForm) -> s.ScreeningHistoryItem:
     return s.ScreeningHistoryItem(
         form_id=form.id,
         submission_date=form.submission_date,
+        responses=json.loads(form.responses),
         risk_level=form.prediction.risk_level.value if form.prediction else None,
         probability_score=form.prediction.probability_score if form.prediction else None,
         crisis_flagged=form.crisis_check.flagged if form.crisis_check else None,

@@ -3,8 +3,8 @@ import streamlit as st
 from collections import Counter
 from api_client import api_get, api_post, auth_headers
 from components import history_card_html, render_header
-from config import RISK_LEVELS
-from i18n import lang, risk_label, t
+from config import RISK_LEVELS, SELF_HARM_QUESTION, SYMPTOM_QUESTIONS
+from i18n import lang, level_option_label, risk_label, t
 
 
 def show_worker_home():
@@ -55,6 +55,21 @@ def show_worker_home():
                         ),
                         unsafe_allow_html=True,
                     )
+                    with st.expander(
+                        f"{t('submitted_answers')} — {item['submission_date'][:10]}"
+                    ):
+                        st.markdown(f"**{t('age_range')}:** {item['responses']['age_bracket']}")
+                        questions = [
+                            (key, question_en, question_fr)
+                            for key, question_en, question_fr, _ in SYMPTOM_QUESTIONS
+                        ]
+                        sh_key, sh_question_en, sh_question_fr = SELF_HARM_QUESTION
+                        questions.append((sh_key, sh_question_en, sh_question_fr))
+                        for key, question_en, question_fr in questions:
+                            question = question_en if lang() == "en" else question_fr
+                            st.markdown(
+                                f"**{question}** {level_option_label(item['responses'][key])}"
+                            )
 
                 st.divider()
                 with st.container(border=True):

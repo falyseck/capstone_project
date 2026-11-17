@@ -160,6 +160,9 @@ at4.selectbox[0].set_value(this_patient_option)
 at4.run()
 history_tab4 = at4.tabs[0]
 assert len(history_tab4.selectbox) >= 1, "expected a 'select a screening' dropdown for the assessment form"
+submitted_answers = " ".join(m.value for m in history_tab4.markdown)
+assert "Have you been feeling sad or tearful?" in submitted_answers
+assert "Patient's answers" in submitted_answers
 history_tab4.selectbox[0].set_value(history_tab4.selectbox[0].options[0])
 history_tab4.radio[0].set_value("medium")
 history_tab4.text_area[0].set_value("Mother seemed more anxious in person than the form suggests.")
