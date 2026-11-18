@@ -121,6 +121,13 @@ patients = resp.json()
 assert any(p["mother_id"] == mother["id"] for p in patients)
 mother_summary = next(p for p in patients if p["mother_id"] == mother["id"])
 assert mother_summary["total_screenings"] == 3
+resp = client.get(
+    f"/healthcare/patients/{mother['id']}/history", headers=auth_headers(worker_a_token)
+)
+assert resp.status_code == 200, resp.text
+worker_history = resp.json()
+submitted_form = next(h for h in worker_history if h["form_id"] == result1["form_id"])
+assert submitted_form["responses"] == low_risk_form
 print(f"   OK — found mother with total_screenings={mother_summary['total_screenings']}")
 
 print("9. Healthcare worker B (different facility) is forbidden from accessing the mother")

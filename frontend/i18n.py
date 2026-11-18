@@ -173,10 +173,10 @@ TRANSLATIONS = {
     "not_yet_assessed": {"en": "not yet reviewed by staff", "fr": "pas encore examiné par le personnel"},
 
     "analytics_intro": {
-        "en": "Risk level distribution across all mothers at your facility, based on each "
-              "mother's latest screening.",
-        "fr": "Répartition des niveaux de risque parmi toutes les mères de votre établissement, "
-              "d'après le dernier dépistage de chacune.",
+        "en": "Risk level distribution across all screenings at your facility. Each screening "
+              "submission is counted, including multiple screenings by the same mother.",
+        "fr": "Répartition des niveaux de risque pour tous les dépistages de votre établissement. "
+              "Chaque dépistage est compté, y compris les dépistages répétés d'une même mère.",
     },
     "no_data_for_analytics": {
         "en": "Not enough data yet to show analytics.",

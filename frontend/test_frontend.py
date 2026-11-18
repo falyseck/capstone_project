@@ -9,10 +9,29 @@ import os
 import uuid
 
 from streamlit.testing.v1 import AppTest
+from views.worker_view import summarize_facility_screenings
 
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 
 APP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.py")
+
+print("0. Facility analytics counts every screening, including repeat screenings")
+example_patients = [{"mother_id": "mother-1"}]
+example_histories = {
+    "mother-1": [
+        {"risk_level": "low", "crisis_flagged": False},
+        {"risk_level": "high", "crisis_flagged": True},
+        {"risk_level": "high", "crisis_flagged": True},
+        {"risk_level": "high", "crisis_flagged": True},
+        {"risk_level": "high", "crisis_flagged": True},
+    ]
+}
+example_stats = summarize_facility_screenings(example_patients, example_histories)
+assert example_stats["risk_counts"] == {"low": 1, "high": 4}
+assert example_stats["total_screenings"] == 5
+assert example_stats["mothers_screened"] == 1
+assert example_stats["crisis_flags"] == 4
+print("   OK — 1 low, 4 high, 5 screenings, 1 mother, 4 crisis flags")
 
 unique = uuid.uuid4().hex[:8]
 mother_email = f"mother_{unique}@example.com"

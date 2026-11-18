@@ -125,25 +125,54 @@ def show_worker_home():
 
 
 def show_facility_analytics(patients):
-    """A small facility-level view: how many mothers currently sit at each
-    risk level, and how many crisis flags have been raised — built entirely
-    from data already fetched for the patient list, no extra API calls."""
+    """Show risk and crisis counts across all screening submissions at the facility."""
     st.write(t("analytics_intro"))
 
-    risk_counts = Counter(p["latest_risk_level"] for p in patients if p.get("latest_risk_level"))
-    if not risk_counts:
+    histories = {}
+    for p in patients:
+        hist_resp = api_get(f"/healthcare/patients/{p['mother_id']}/history", headers=auth_headers())
+        if hist_resp.status_code != 200:
+            st.error(t("history_load_error"))
+            return
+        histories[p["mother_id"]] = hist_resp.json()
+
+    stats = summarize_facility_screenings(patients, histories)
+    col1, col2, col3 = st.columns(3)
+    col1.metric(t("mothers_screened"), stats["mothers_screened"])
+    col2.metric(t("total_screenings"), stats["total_screenings"])
+    col3.metric(t("crisis_flags_total"), stats["crisis_flags"])
+
+    if not stats["risk_counts"]:
         st.info(t("no_data_for_analytics"))
         return
 
-    col1, col2 = st.columns(2)
-    col1.metric(t("mothers_screened"), sum(1 for p in patients if p.get("total_screenings", 0) > 0))
-
-    crisis_total = 0
-    for p in patients:
-        hist_resp = api_get(f"/healthcare/patients/{p['mother_id']}/history", headers=auth_headers())
-        if hist_resp.status_code == 200:
-            crisis_total += sum(1 for h in hist_resp.json() if h.get("crisis_flagged"))
-    col2.metric(t("crisis_flags_total"), crisis_total)
-
-    chart_data = {risk_label(level): risk_counts.get(level, 0) for level in RISK_LEVELS}
+    chart_data = {
+        risk_label(level): stats["risk_counts"].get(level, 0)
+        for level in RISK_LEVELS
+    }
     st.bar_chart(chart_data)
+
+
+def summarize_facility_screenings(patients, histories):
+    """Count risk levels and crisis flags per submission, not per patient's latest result."""
+    risk_counts = Counter()
+    crisis_flags = 0
+    total_screenings = 0
+    mothers_screened = 0
+
+    for patient in patients:
+        history = histories[patient["mother_id"]]
+        if history:
+            mothers_screened += 1
+        total_screenings += len(history)
+        risk_counts.update(
+            item["risk_level"] for item in history if item.get("risk_level")
+        )
+        crisis_flags += sum(1 for item in history if item.get("crisis_flagged"))
+
+    return {
+        "risk_counts": risk_counts,
+        "crisis_flags": crisis_flags,
+        "total_screenings": total_screenings,
+        "mothers_screened": mothers_screened,
+    }
